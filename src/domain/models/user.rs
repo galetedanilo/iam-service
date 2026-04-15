@@ -26,14 +26,11 @@ pub enum UserError {
     #[error("User with email {0} already exists")]
     AlreadyExists(String),
 
-    #[error("Invalid user data: {0}")]
+    #[error("Invalid data: {0}")]
     InvalidData(String),
 
     #[error("User not found with id: {0}")]
     NotFound(String),
-
-    #[error("Version conflict for user with id: {0}")]
-    VersionConflict(String),
 
     #[error("Unknown error: {0}")]
     Unknown(String),
@@ -110,12 +107,12 @@ impl User {
         &self.scopes
     }
 
-    pub fn token_hash(&self) -> Option<&String> {
-        self.token_hash.as_ref()
+    pub fn token_hash(&self) -> &Option<String> {
+        &self.token_hash
     }
 
-    pub fn token_expires_at(&self) -> Option<&DateTime<Utc>> {
-        self.token_expires_at.as_ref()
+    pub fn token_expires_at(&self) -> &Option<DateTime<Utc>> {
+        &self.token_expires_at
     }
 
     pub fn created_at(&self) -> &DateTime<Utc> {
