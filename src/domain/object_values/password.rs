@@ -147,13 +147,13 @@ mod tests {
 
     #[test]
     fn test_try_new_missing_digit() {
-        let result = Password::try_new("Uppercase1!".to_string());
+        let result = Password::try_new("Uppercaseta".to_string());
         assert_eq!(result.unwrap_err(), PasswordError::MissingDigit);
     }
 
     #[test]
     fn test_try_new_missing_special_char() {
-        let result = Password::try_new("Uppercase1!".to_string());
+        let result = Password::try_new("Uppercase1".to_string());
         assert_eq!(result.unwrap_err(), PasswordError::MisssingSpecialChar);
     }
 }

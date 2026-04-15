@@ -9,11 +9,11 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct RegisterUserUsecase<R: UserRepository + Send + Sync> {
+pub struct RegisterUserUseCase<R: UserRepository + Send + Sync> {
     repository: Arc<R>,
 }
 
-impl<R: UserRepository + Send + Sync> RegisterUserUsecase<R> {
+impl<R: UserRepository + Send + Sync> RegisterUserUseCase<R> {
     pub fn new(repository: Arc<R>) -> Self {
         Self { repository }
     }

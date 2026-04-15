@@ -1,6 +1,13 @@
+use crate::presentation::api::Service;
+
 mod application;
 mod domain;
+mod infrastructure;
+mod presentation;
 
-fn main() {
-    println!("Hello, world!");
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    dotenvy::dotenv().ok();
+
+    Service::start().run().await
 }
