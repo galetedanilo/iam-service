@@ -1,7 +1,5 @@
-use chrono::{DateTime, Utc};
-
 use crate::domain::{
-    events::event::Event,
+    events::event::EventPayload,
     object_values::{email::Email, id::Id},
 };
 
@@ -9,16 +7,11 @@ use crate::domain::{
 pub struct UserActivatedEvent {
     user_id: Id,
     email: Email,
-    occurred_at: DateTime<Utc>,
 }
 
 impl UserActivatedEvent {
     pub fn new(user_id: Id, email: Email) -> Self {
-        Self {
-            user_id,
-            email,
-            occurred_at: Utc::now(),
-        }
+        Self { user_id, email }
     }
 
     pub fn user_id(&self) -> &Id {
@@ -28,28 +21,13 @@ impl UserActivatedEvent {
     pub fn email(&self) -> &Email {
         &self.email
     }
-
-    pub fn occurred_at(&self) -> &DateTime<Utc> {
-        &self.occurred_at
-    }
 }
 
-impl Event for UserActivatedEvent {
-    fn event_type(&self) -> &'static str {
-        "UserActivatedEvent"
-    }
-
-    fn to_json(&self) -> String {
+impl EventPayload for UserActivatedEvent {
+    fn get_payload(&self) -> String {
         format!(
-            "{{\"user_id\": \"{}\", \"email\": \"{}\", \"occurred_at\": \"{}\", \"event_type\": \"{}\"}}",
-            self.user_id,
-            self.email,
-            self.occurred_at,
-            self.event_type()
+            "{{\"user_id\": \"{}\", \"email\": \"{}\"}}",
+            self.user_id, self.email
         )
-    }
-
-    fn occurred_at(&self) -> &DateTime<Utc> {
-        &self.occurred_at
     }
 }

@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::{
     domain::{
         enums::{audience::Audience, scope::Scope},
-        events::event::Event,
+        events::event::{Event, EventPayload},
         models::{user::User, user_by_email::UserByEmail},
         object_values::{email::Email, id::Id, password::Password, status::Status},
         repositories::user_repository::{UserRepository, UserRepositoryError},
@@ -33,7 +33,11 @@ impl ScyllaUserRepository {
 
 #[async_trait::async_trait]
 impl UserRepository for ScyllaUserRepository {
-    async fn save(&self, user: &User, event: Box<dyn Event>) -> Result<(), UserRepositoryError> {
+    #[tracing::instrument(name = "Saving user to ScyllaDB", skip(self, user, event))]
+    async fn save<T>(&self, user: &User, event: &Event<T>) -> Result<(), UserRepositoryError>
+    where
+        T: EventPayload,
+    {
         let now = Utc::now();
 
         // 1. Definição do Bucket para o Outbox (ex: 10 shards por dia)
@@ -57,12 +61,8 @@ impl UserRepository for ScyllaUserRepository {
 
         // 4. Query para a Outbox Genérica
         batch.append_statement(
-            "INSERT INTO outbox (bucket_id, event_id, status, payload, event_type) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO outbox (bucket_id, event_id, status, payload, metadata, event_type) VALUES (?, ?, ?, ?, ?, ?)",
         );
-
-        let event_id = Uuid::now_v7();
-        let payload = event.to_json();
-        let event_type = event.event_type();
 
         // 5. Valores para o batch (ordem deve corresponder às queries acima)
         let batch_values = (
@@ -86,10 +86,11 @@ impl UserRepository for ScyllaUserRepository {
             ), // Dados do User
             (
                 bucket_id,
-                event_id,
-                payload,
+                event.id(),
+                event.payload(),
                 OutboxStatus::Pending.as_ref(),
-                event_type,
+                event.metadata(),
+                event.event_type().as_ref(),
             ), // Dados da Outbox
         );
 
@@ -109,6 +110,7 @@ impl UserRepository for ScyllaUserRepository {
         Ok(())
     }
 
+    #[tracing::instrument(name = "Finding user by email in ScyllaDB", skip(self, email))]
     async fn find_by_email(
         &self,
         email: &Email,
@@ -150,6 +152,7 @@ impl UserRepository for ScyllaUserRepository {
         Ok(Some(user))
     }
 
+    #[tracing::instrument(name = "Finding user by ID in ScyllaDB", skip(self, id))]
     async fn find_by_id(&self, id: &Id) -> Result<Option<User>, UserRepositoryError> {
         let rows = self
             .session

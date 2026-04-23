@@ -3,21 +3,26 @@ use std::sync::Arc;
 use crate::{
     application::inputs::register_user_input::RegisterUserInput,
     domain::{
+        events::{
+            event::{Event, EventType},
+            user_registered_event::UserRegisteredEvent,
+        },
         models::user::{User, UserError},
         repositories::user_repository::UserRepository,
     },
 };
 
 #[derive(Clone)]
-pub struct RegisterUserUseCase<R: UserRepository + Send + Sync> {
+pub struct RegisterUserUseCase<R: UserRepository> {
     repository: Arc<R>,
 }
 
-impl<R: UserRepository + Send + Sync> RegisterUserUseCase<R> {
+impl<R: UserRepository> RegisterUserUseCase<R> {
     pub fn new(repository: Arc<R>) -> Self {
         Self { repository }
     }
 
+    #[tracing::instrument(name = "Registering a new user", skip(self, input))]
     pub async fn execute(&self, input: RegisterUserInput) -> Result<(), UserError> {
         if self
             .repository
@@ -30,10 +35,11 @@ impl<R: UserRepository + Send + Sync> RegisterUserUseCase<R> {
         }
 
         let user = User::new(input.email, input.password);
-        let user_registered_event = user.get_register_event();
+        let event_payload = UserRegisteredEvent::new(user.id().clone(), user.email().clone());
+        let event = Event::new(EventType::UserRegistered, event_payload);
 
         self.repository
-            .save(&user, Box::new(user_registered_event))
+            .save(&user, &event)
             .await
             .map_err(UserError::from)?;
 

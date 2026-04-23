@@ -5,8 +5,7 @@ use crate::{
     domain::repositories::user_repository::UserRepository,
     presentation::api::{
         helpers::{
-            app_state::AppState,
-            utils::{AppErrorResponse, ValidatedJson},
+            app_error::AppErrorResponse, app_state::AppState, validated_json::ValidatedJson,
         },
         requests::register_user_request::RegisterUserRequest,
     },

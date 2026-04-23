@@ -3,7 +3,6 @@ use thiserror::Error;
 
 use crate::domain::{
     enums::{audience::Audience, scope::Scope},
-    events::user_registered_event::UserRegisteredEvent,
     object_values::{email::Email, id::Id, password::Password, status::Status},
 };
 
@@ -31,6 +30,12 @@ pub enum UserError {
 
     #[error("User not found with id: {0}")]
     NotFound(String),
+
+    #[error("Version conflict for user with id: {0}")]
+    VersionConflict(String),
+
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
 
     #[error("Unknown error: {0}")]
     Unknown(String),
@@ -164,10 +169,11 @@ impl User {
     }
 
     pub fn can_authenticate(&self) -> bool {
-        self.status == Status::Active
+        self.status().can_authenticate()
     }
 
-    pub fn get_register_event(&self) -> UserRegisteredEvent {
-        UserRegisteredEvent::new(self.id.clone(), self.email.clone())
+    pub fn confirm_email_and_activate_user(&mut self) {
+        self.status = Status::Active;
+        self.invalidate_token();
     }
 }
