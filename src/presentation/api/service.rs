@@ -47,13 +47,14 @@ impl Service {
                 .unwrap_or_else(|_| "false".to_string())
                 .parse()
                 .expect("SCYLLA_CASE_SENSITIVE must be a boolean"),
+            std::env::var("JAEGER_URL").expect("JAEGER_URL must be set"),
         );
 
         Self { config }
     }
 
     pub async fn run(&self) -> anyhow::Result<()> {
-        init_telemetry()?;
+        init_telemetry(&self.config.jaeger_url)?;
 
         let cors_layer = CorsLayer::new()
             .allow_methods([Method::GET, Method::POST, Method::PUT])

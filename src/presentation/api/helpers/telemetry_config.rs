@@ -4,10 +4,10 @@ use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::{Resource, trace::RandomIdGenerator};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-pub fn init_telemetry() -> Result<()> {
+pub fn init_telemetry(endpoint: &str) -> Result<()> {
     let otlp_exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
-        .with_endpoint("http://localhost:4317")
+        .with_endpoint(endpoint)
         .build()?;
 
     // Create a tracer provider with the exporter
