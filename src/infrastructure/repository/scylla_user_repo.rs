@@ -3,7 +3,7 @@ use std::sync::Arc;
 use chrono::{DateTime, Utc};
 use scylla::{
     client::session::Session,
-    errors::{ExecutionError, FirstRowError, IntoRowsResultError},
+    errors::{ExecutionError, FirstRowError, IntoRowsResultError, MaybeFirstRowError},
     statement::batch::Batch,
 };
 use std::str::FromStr;
@@ -33,6 +33,7 @@ impl ScyllaUserRepository {
 
 #[async_trait::async_trait]
 impl UserRepository for ScyllaUserRepository {
+    
     #[tracing::instrument(name = "Saving user to ScyllaDB", skip(self, user, event))]
     async fn save<T>(&self, user: &User, event: &Event<T>) -> Result<(), UserRepositoryError>
     where
@@ -47,11 +48,18 @@ impl UserRepository for ScyllaUserRepository {
         // 2. RESERVA DE E-MAIL (LWT)
         // Isso garante que ninguém mais use este e-mail
         let reserve_query = "INSERT INTO email_lookup (email, user_id) VALUES (?, ?) IF NOT EXISTS";
-        let _ = self
+        let result = self
             .session
             .query_unpaged(reserve_query, (user.email().as_ref(), user.id().as_ref()))
             .await?
             .into_rows_result()?;
+
+        if let Some(row) = result.maybe_first_row::<(bool, Option<String>, Option<Uuid>)>()? {
+            let (applied, _, _) = row;
+            if !applied {
+                return Err(UserRepositoryError::UserAlreadyExists);
+            }
+        }
 
         let mut batch = Batch::default();
 
@@ -235,6 +243,13 @@ impl From<IntoRowsResultError> for UserRepositoryError {
 impl From<FirstRowError> for UserRepositoryError {
     fn from(value: FirstRowError) -> Self {
         tracing::error!("First row error: {}", value);
+        UserRepositoryError::Unknown(value.to_string())
+    }
+}
+
+impl From<MaybeFirstRowError> for UserRepositoryError {
+    fn from(value: MaybeFirstRowError) -> Self {
+        tracing::error!("Maybe first row error: {}", value);
         UserRepositoryError::Unknown(value.to_string())
     }
 }
