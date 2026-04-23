@@ -6,20 +6,22 @@ use axum::{
         HeaderValue, Method,
         header::{AUTHORIZATION, CONTENT_TYPE},
     },
-    routing::post,
+    routing::{get, post},
 };
 use jsonwebtoken::EncodingKey;
 use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
     infrastructure::repository::{
         scylla_service::ScyllaService, scylla_user_repo::ScyllaUserRepository,
     },
     presentation::api::{
-        handlers::register_user_handler::register_user_handler,
-        helpers::{app_state::AppState, config::Config},
+        handlers::{
+            confirm_email_handler::confirm_email_handler,
+            register_user_handler::register_user_handler,
+        },
+        helpers::{app_state::AppState, config::Config, telemetry_config::init_telemetry},
     },
 };
 
@@ -45,15 +47,14 @@ impl Service {
                 .unwrap_or_else(|_| "false".to_string())
                 .parse()
                 .expect("SCYLLA_CASE_SENSITIVE must be a boolean"),
+            std::env::var("JAEGER_URL").expect("JAEGER_URL must be set"),
         );
 
         Self { config }
     }
 
     pub async fn run(&self) -> anyhow::Result<()> {
-        tracing_subscriber::registry()
-            .with(tracing_subscriber::fmt::layer())
-            .init();
+        init_telemetry(&self.config.jaeger_url)?;
 
         let cors_layer = CorsLayer::new()
             .allow_methods([Method::GET, Method::POST, Method::PUT])
@@ -67,7 +68,12 @@ impl Service {
             .finish()
             .unwrap();
 
-        let routers = Router::new().route("/register", post(register_user_handler));
+        let routers = Router::new()
+            .route("/register", post(register_user_handler))
+            .route(
+                "/confirm-email/{user_id}/{token}",
+                get(confirm_email_handler),
+            );
 
         let pem_content =
             std::fs::read(&self.config.private_key_path).expect("Failed to view EdDSA private key");

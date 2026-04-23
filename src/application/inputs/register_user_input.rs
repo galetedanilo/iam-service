@@ -3,6 +3,7 @@ use crate::domain::{
     object_values::{email::Email, password::Password},
 };
 
+#[derive(Debug, Clone)]
 pub struct RegisterUserInput {
     pub email: Email,
     pub password: Password,

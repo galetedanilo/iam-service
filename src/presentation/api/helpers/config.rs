@@ -8,6 +8,7 @@ pub struct Config {
     pub username: String,
     pub password: String,
     pub case_sensitive: bool,
+    pub jaeger_url: String,
 }
 
 impl Config {
@@ -20,6 +21,7 @@ impl Config {
         username: String,
         password: String,
         case_sensitive: bool,
+        jaeger_url: String,
     ) -> Self {
         Self {
             request_host,
@@ -30,6 +32,7 @@ impl Config {
             username,
             password,
             case_sensitive,
+            jaeger_url,
         }
     }
 }
