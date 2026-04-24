@@ -31,22 +31,15 @@ src/
 - **Serialização:** [Serde](https://serde.rs)
 - **Validação:** [Validator](https://github.com/Keats/validator)
 - **Segurança:** [Jsonwebtoken](https://docs.rs/jsonwebtoken/latest/jsonwebtoken/)
-
-## 🛠 Fitness Functions
-
-Este projeto utiliza Fitness Functions automatizadas via GitHub Actions:
-
-- Mínimo de 80% de cobertura de testes.
-- Complexidade controlada via Clippy.
-
-Se o build falhar, verifique se você adicionou testes para as novas funcionalidades ou se a lógica da sua função pode ser simplificada (refatorada).
+- **Observabilidade:** [Tracing](https://tracing.rs) (Instrumentação) e [OpenTelemetry](https://opentelemetry.io) (Exportação de Telemetria)
 
 ## 📋 Status dos Endpoints (API)
 
-| Método | Endpoint         | Descrição                 | Status                               |
-| :----- | :--------------- | :------------------------ | :----------------------------------- |
-| `GET`  | `/health`        | Check de saúde do sistema | 🚧 Em progresso (Application/Domain) |
-| `POST` | `/auth/register` | Registrar um novo usuário | ✅ Concluído                         |
+| Método | Endpoint                                | Descrição                 | Status       |
+| :----- | :-------------------------------------- | :------------------------ | :----------- |
+| `GET`  | `/health`                               | Check de saúde do sistema | ✅ Concluído |
+| `GET`  | `/auth/confirm-email/{user_id}/{token}` | Registrar um novo usuário | ✅ Concluído |
+| `POST` | `/auth/register`                        | Registrar um novo usuário | ✅ Concluído |
 
 ## 🏁 Configuração Local
 
