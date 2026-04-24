@@ -18,8 +18,7 @@ use crate::{
     },
     presentation::api::{
         handlers::{
-            confirm_email_handler::confirm_email_handler,
-            register_user_handler::register_user_handler,
+            confirm_email_handler::confirm_email_handler, health_handler::health_handler, register_user_handler::register_user_handler
         },
         helpers::{app_state::AppState, config::Config, telemetry_config::init_telemetry},
     },
@@ -95,6 +94,7 @@ impl Service {
 
         let app = Router::new()
             .nest("/auth", routers)
+            .route("/health", get(health_handler))
             .with_state(state)
             .layer(TraceLayer::new_for_http())
             .layer(GovernorLayer::new(governor_conf))
