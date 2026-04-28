@@ -104,11 +104,11 @@ impl User {
         &self.status
     }
 
-    pub fn audiences(&self) -> &[Audience] {
+    pub fn audiences(&self) -> &Vec<Audience> {
         &self.audiences
     }
 
-    pub fn scopes(&self) -> &[Scope] {
+    pub fn scopes(&self) -> &Vec<Scope> {
         &self.scopes
     }
 
@@ -175,5 +175,9 @@ impl User {
     pub fn confirm_email_and_activate_user(&mut self) {
         self.status = Status::Active;
         self.invalidate_token();
+    }
+
+    pub fn verify_password(&self, password: String) -> bool {
+        self.password.verify(&password)
     }
 }

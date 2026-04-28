@@ -86,11 +86,11 @@ impl Password {
         Self(hash)
     }
 
-    pub fn verify(&self, attempt: &str) -> bool {
+    pub fn verify(&self, password: &str) -> bool {
         let parsed_hash = PasswordHash::new(&self.0).expect("Invalid hash format in database");
 
         Argon2::default()
-            .verify_password(attempt.as_bytes(), &parsed_hash)
+            .verify_password(password.as_bytes(), &parsed_hash)
             .is_ok()
     }
 

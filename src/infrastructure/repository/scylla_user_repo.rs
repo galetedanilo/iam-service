@@ -13,7 +13,7 @@ use crate::{
     domain::{
         enums::{audience::Audience, scope::Scope},
         events::event::{Event, EventPayload},
-        models::{user::User, user_by_email::UserByEmail},
+        models::user::User,
         object_values::{email::Email, id::Id, password::Password, status::Status},
         repositories::user_repository::{UserRepository, UserRepositoryError},
     },
@@ -33,7 +33,6 @@ impl ScyllaUserRepository {
 
 #[async_trait::async_trait]
 impl UserRepository for ScyllaUserRepository {
-    
     #[tracing::instrument(name = "Saving user to ScyllaDB", skip(self, user, event))]
     async fn save<T>(&self, user: &User, event: &Event<T>) -> Result<(), UserRepositoryError>
     where
@@ -48,18 +47,11 @@ impl UserRepository for ScyllaUserRepository {
         // 2. RESERVA DE E-MAIL (LWT)
         // Isso garante que ninguém mais use este e-mail
         let reserve_query = "INSERT INTO email_lookup (email, user_id) VALUES (?, ?) IF NOT EXISTS";
-        let result = self
+        let _ = self
             .session
             .query_unpaged(reserve_query, (user.email().as_ref(), user.id().as_ref()))
             .await?
             .into_rows_result()?;
-
-        if let Some(row) = result.maybe_first_row::<(bool, Option<String>, Option<Uuid>)>()? {
-            let (applied, _, _) = row;
-            if !applied {
-                return Err(UserRepositoryError::UserAlreadyExists);
-            }
-        }
 
         let mut batch = Batch::default();
 
@@ -71,6 +63,9 @@ impl UserRepository for ScyllaUserRepository {
         batch.append_statement(
             "INSERT INTO outbox (bucket_id, event_id, status, payload, metadata, event_type) VALUES (?, ?, ?, ?, ?, ?)",
         );
+
+        // 5. Query para UserByEmail
+        batch.append_statement("INSERT INTO users_by_email (email, id) VALUES (?, ?)");
 
         // 5. Valores para o batch (ordem deve corresponder às queries acima)
         let batch_values = (
@@ -100,6 +95,7 @@ impl UserRepository for ScyllaUserRepository {
                 event.metadata(),
                 event.event_type().as_ref(),
             ), // Dados da Outbox
+            (user.email().as_ref(), user.id().as_ref()), // Dados UsersByEmail,
         );
 
         // 6. Execução do batch
@@ -119,45 +115,26 @@ impl UserRepository for ScyllaUserRepository {
     }
 
     #[tracing::instrument(name = "Finding user by email in ScyllaDB", skip(self, email))]
-    async fn find_by_email(
-        &self,
-        email: &Email,
-    ) -> Result<Option<UserByEmail>, UserRepositoryError> {
+    async fn find_by_email(&self, email: &Email) -> Result<Option<User>, UserRepositoryError> {
         let rows = self
             .session
             .query_unpaged(
-                "SELECT id, email, password, status, token_hash, token_expires_at FROM view_users_by_email WHERE email = ?",
+                "SELECT email, id FROM users_by_email WHERE email = ?",
                 (email.as_ref(),),
             )
             .await?
             .into_rows_result()?;
 
-        let first_result = match rows.first_row::<(
-            Uuid,
-            String,
-            String,
-            String,
-            Option<String>,
-            Option<DateTime<Utc>>,
-        )>() {
+        let first_result = match rows.first_row::<(String, Uuid)>() {
             Ok(row) => row,
             Err(FirstRowError::RowsEmpty) => return Ok(None),
             Err(e) => return Err(UserRepositoryError::Unknown(e.to_string())),
         };
 
-        let (id, email_str, password_str, status, token_hash, token_expires_at) = first_result;
+        let (_, id) = first_result;
+        let id = Id::from_uuid(id);
 
-        let user = UserByEmail::from_parts(
-            Id::from_uuid(id),
-            Email::try_new(email_str)
-                .map_err(|e| UserRepositoryError::InvalidData(e.to_string()))?,
-            Password::from_hash(password_str),
-            Status::from_str(&status)
-                .map_err(|e| UserRepositoryError::InvalidData(e.to_string()))?,
-            token_hash,
-            token_expires_at,
-        );
-        Ok(Some(user))
+        self.find_by_id(&id).await
     }
 
     #[tracing::instrument(name = "Finding user by ID in ScyllaDB", skip(self, id))]

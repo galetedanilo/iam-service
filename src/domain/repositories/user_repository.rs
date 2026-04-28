@@ -2,19 +2,13 @@ use thiserror::Error;
 
 use crate::domain::{
     events::event::{Event, EventPayload},
-    models::{
-        user::{User, UserError},
-        user_by_email::UserByEmail,
-    },
+    models::user::{User, UserError},
     object_values::{email::Email, id::Id},
 };
 
 #[async_trait::async_trait]
 pub trait UserRepository: Send + Sync {
-    async fn find_by_email(
-        &self,
-        email: &Email,
-    ) -> Result<Option<UserByEmail>, UserRepositoryError>;
+    async fn find_by_email(&self, email: &Email) -> Result<Option<User>, UserRepositoryError>;
 
     async fn find_by_id(&self, id: &Id) -> Result<Option<User>, UserRepositoryError>;
 
