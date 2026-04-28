@@ -15,15 +15,7 @@ CREATE TABLE IF NOT EXISTS iam_service.users (
     updated_at timestamp,
 );
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS iam_service.view_users_by_email AS
-    SELECT id, email, password, status, token_hash, token_expires_at 
-    FROM iam_service.users
-    WHERE email IS NOT NULL AND id IS NOT NULL
-    PRIMARY KEY (email, id);
-
-CREATE MATERIALIZED VIEW IF NOT EXISTS iam_service.view_users_by_status AS
-    SELECT id, email, created_at, status 
-    FROM iam_service.users
-    WHERE status IS NOT NULL AND id IS NOT NULL 
-    PRIMARY KEY (status, id) 
-    WITH CLUSTERING ORDER BY (id DESC);
+CREATE TABLE IF NOT EXISTS iam_service.users_by_email (
+    email text PRIMARY KEY,
+    id uuid
+);
