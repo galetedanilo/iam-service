@@ -18,7 +18,9 @@ use crate::{
     },
     presentation::api::{
         handlers::{
-            confirm_email_handler::confirm_email_handler, health_handler::health_handler, register_user_handler::register_user_handler
+            authentication_handler::authentication_handler,
+            confirm_email_handler::confirm_email_handler, health_handler::health_handler,
+            register_user_handler::register_user_handler,
         },
         helpers::{app_state::AppState, config::Config, telemetry_config::init_telemetry},
     },
@@ -68,6 +70,7 @@ impl Service {
             .unwrap();
 
         let routers = Router::new()
+            .route("/authentication", post(authentication_handler))
             .route("/register", post(register_user_handler))
             .route(
                 "/confirm-email/{user_id}/{token}",
