@@ -11,9 +11,9 @@ use crate::{
 
 pub async fn confirm_email_handler<R: UserRepository>(
     State(state): State<AppState<R>>,
-    Path((user_id, token)): Path<(String, String)>,
+    Path(jwt): Path<String>,
 ) -> Result<StatusCode, AppErrorResponse> {
-    let command = ConfirmEmailInput::try_new(user_id, token)?;
+    let command = ConfirmEmailInput::new(jwt);
 
     state
         .confirm_email_use_case

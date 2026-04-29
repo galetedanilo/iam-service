@@ -8,7 +8,7 @@ use axum::{
     },
     routing::{get, post},
 };
-use jsonwebtoken::EncodingKey;
+use jsonwebtoken::{DecodingKey, EncodingKey};
 use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
@@ -36,6 +36,7 @@ impl Service {
             std::env::var("REQUEST_HOST").expect("REQUEST_HOST must be set"),
             std::env::var("SERVICE_ADDR").expect("SERVICE_ADDR must be set"),
             std::env::var("PRIVATE_KEY_PATH").expect("PRIVATE_KEY_PATH must be set"),
+            std::env::var("PUBLIC_KEY_PATH").expect("PUBLIC_KEY_PATH must be set"),
             std::env::var("SCYLLA_HOSTNAMES")
                 .expect("SCYLLA_HOSTNAMES must be set")
                 .split(',')
@@ -72,15 +73,16 @@ impl Service {
         let routers = Router::new()
             .route("/authentication", post(authentication_handler))
             .route("/register", post(register_user_handler))
-            .route(
-                "/confirm-email/{user_id}/{token}",
-                get(confirm_email_handler),
-            );
+            .route("/confirm-email/{jwt}", get(confirm_email_handler));
 
         let pem_content =
             std::fs::read(&self.config.private_key_path).expect("Failed to view EdDSA private key");
+        let public_key_content =
+            std::fs::read(&self.config.public_key_path).expect("Failed to view EdDSA public key");
 
         let encoding_key = EncodingKey::from_ed_pem(&pem_content).expect("Invalid EdDSA key");
+        let decoding_key =
+            DecodingKey::from_ed_pem(&public_key_content).expect("Invalid EdDSA public key");
 
         let scylla_service = ScyllaService::new(
             self.config.hostnames.iter().map(String::as_str).collect(),
@@ -93,7 +95,11 @@ impl Service {
 
         let repository = ScyllaUserRepository::new(Arc::new(scylla_service));
 
-        let state = AppState::new(Arc::new(repository), Arc::new(encoding_key));
+        let state = AppState::new(
+            Arc::new(repository),
+            Arc::new(encoding_key),
+            Arc::new(decoding_key),
+        );
 
         let app = Router::new()
             .nest("/auth", routers)

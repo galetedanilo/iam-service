@@ -7,11 +7,16 @@ use crate::domain::{
 pub struct UserRegisteredEvent {
     user_id: Id,
     email: Email,
+    token: String,
 }
 
 impl UserRegisteredEvent {
-    pub fn new(user_id: Id, email: Email) -> Self {
-        Self { user_id, email }
+    pub fn new(user_id: Id, email: Email, token: String) -> Self {
+        Self {
+            user_id,
+            email,
+            token,
+        }
     }
 
     pub fn user_id(&self) -> &Id {
@@ -21,13 +26,17 @@ impl UserRegisteredEvent {
     pub fn email(&self) -> &Email {
         &self.email
     }
+
+    pub fn token(&self) -> &String {
+        &self.token
+    }
 }
 
 impl EventPayload for UserRegisteredEvent {
     fn get_payload(&self) -> String {
         format!(
-            "{{\"user_id\": \"{}\", \"email\": \"{}\"}}",
-            self.user_id, self.email
+            "{{\"user_id\": \"{}\", \"email\": \"{}\", \"token\": \"{}\"}}",
+            self.user_id, self.email, self.token
         )
     }
 }
