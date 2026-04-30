@@ -20,7 +20,9 @@ use crate::{
         handlers::{
             authentication_handler::authentication_handler,
             confirm_email_handler::confirm_email_handler, health_handler::health_handler,
+            forgot_password_handler::forgot_password_handler,
             register_user_handler::register_user_handler,
+            reset_password_handler::reset_password_handler,
         },
         helpers::{app_state::AppState, config::Config, telemetry_config::init_telemetry},
     },
@@ -73,6 +75,8 @@ impl Service {
         let routers = Router::new()
             .route("/authentication", post(authentication_handler))
             .route("/register", post(register_user_handler))
+            .route("/forgot-password", post(forgot_password_handler))
+            .route("/reset-password", post(reset_password_handler))
             .route("/confirm-email/{jwt}", get(confirm_email_handler));
 
         let pem_content =
