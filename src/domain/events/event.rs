@@ -11,6 +11,8 @@ pub trait EventPayload: Send + Sync {
 pub enum EventType {
     UserRegistered,
     UserActivated,
+    PasswordResetRequested,
+    PasswordResetCompleted,
     // Outros tipos de eventos podem ser adicionados aqui
 }
 

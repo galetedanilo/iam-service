@@ -5,6 +5,7 @@ use strum_macros::{AsRefStr, Display, EnumString};
 pub enum Status {
     Active,
     PendingConfirmation,
+    PendingResetPassword,
     Suspended,
     Banned,
     Deleted,
