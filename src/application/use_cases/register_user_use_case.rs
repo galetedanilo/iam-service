@@ -35,12 +35,10 @@ impl<R: UserRepository> RegisterUserUseCase<R> {
         }
 
         let user = User::new(input.email, input.password);
-        let token = user.token_hash().as_ref().ok_or_else(|| {
-            UserError::InvalidData("Token was not generated for new user".to_string())
-        })?;
+
         
         let event_payload =
-            UserRegisteredEvent::new(user.id().clone(), user.email().clone(), token.clone());
+            UserRegisteredEvent::new(user.id().clone(), user.email().clone());
         let event = Event::new(EventType::UserRegistered, event_payload);
 
         self.repository

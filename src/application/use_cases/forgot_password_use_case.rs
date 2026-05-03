@@ -34,15 +34,10 @@ impl<R: UserRepository> ForgotPasswordUseCase<R> {
             return Ok(());
         };
 
-        user.update_token();
         user.set_status(Status::PendingResetPassword);
 
-        let token = user.token_hash().clone().ok_or_else(|| {
-            UserError::InvalidData("Token was not generated for password reset".to_string())
-        })?;
-
         let event_payload =
-            PasswordResetRequestedEvent::new(user.id().clone(), user.email().clone(), token);
+            PasswordResetRequestedEvent::new(user.id().clone(), user.email().clone());
         let event = Event::new(EventType::PasswordResetRequested, event_payload);
 
         self.repository

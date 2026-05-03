@@ -55,17 +55,14 @@ impl UserRepository for ScyllaUserRepository {
 
         let mut batch = Batch::default();
 
-        // 3. BATCH ATÔMICO (Usuário + Outbox)
+        // 3. BATCH ATÔMICO (Usuário + Outbox )
         // Se um falhar, o outro não é gravado
-        batch.append_statement("INSERT INTO users (id, email, password, audiences, scopes, status, token_hash, token_expires_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        batch.append_statement("INSERT INTO users (id, email, password, audiences, scopes, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
 
         // 4. Query para a Outbox Genérica
         batch.append_statement(
             "INSERT INTO outbox (bucket_id, event_id, status, payload, metadata, event_type) VALUES (?, ?, ?, ?, ?, ?)",
         );
-
-        // 5. Query para UserByEmail
-        batch.append_statement("INSERT INTO users_by_email (email, id) VALUES (?, ?)");
 
         // 5. Valores para o batch (ordem deve corresponder às queries acima)
         let batch_values = (
@@ -82,8 +79,6 @@ impl UserRepository for ScyllaUserRepository {
                     .map(|s| s.as_ref())
                     .collect::<Vec<&str>>(),
                 user.status().as_ref(),
-                user.token_hash().as_ref(),
-                user.token_expires_at().as_ref(),
                 user.created_at(),
                 user.updated_at(),
             ), // Dados do User
@@ -95,7 +90,6 @@ impl UserRepository for ScyllaUserRepository {
                 event.metadata(),
                 event.event_type().as_ref(),
             ), // Dados da Outbox
-            (user.email().as_ref(), user.id().as_ref()), // Dados UsersByEmail,
         );
 
         // 6. Execução do batch
@@ -119,7 +113,7 @@ impl UserRepository for ScyllaUserRepository {
         let rows = self
             .session
             .query_unpaged(
-                "SELECT email, id FROM users_by_email WHERE email = ?",
+                "SELECT email, user_id FROM email_lookup WHERE email = ?",
                 (email.as_ref(),),
             )
             .await?
@@ -131,8 +125,8 @@ impl UserRepository for ScyllaUserRepository {
             Err(e) => return Err(UserRepositoryError::Unknown(e.to_string())),
         };
 
-        let (_, id) = first_result;
-        let id = Id::from_uuid(id);
+        let (_, user_id) = first_result;
+        let id = Id::from_uuid(user_id);
 
         self.find_by_id(&id).await
     }
@@ -142,7 +136,7 @@ impl UserRepository for ScyllaUserRepository {
         let rows = self
             .session
             .query_unpaged(
-                "SELECT id, email, password, status, audiences, scopes, token_hash, token_expires_at, created_at, updated_at FROM users WHERE id = ?",
+                "SELECT id, email, password, status, audiences, scopes, created_at, updated_at FROM users WHERE id = ?",
                 (id.as_ref(),),
             )
             .await?
@@ -155,8 +149,6 @@ impl UserRepository for ScyllaUserRepository {
             String,
             Vec<String>,
             Vec<String>,
-            Option<String>,
-            Option<DateTime<Utc>>,
             DateTime<Utc>,
             DateTime<Utc>,
         )>() {
@@ -165,18 +157,8 @@ impl UserRepository for ScyllaUserRepository {
             Err(e) => return Err(UserRepositoryError::Unknown(e.to_string())),
         };
 
-        let (
-            id,
-            email_str,
-            password_str,
-            status,
-            audiences,
-            scopes,
-            token_hash,
-            token_expires_at,
-            created_at,
-            updated_at,
-        ) = first_result;
+        let (id, email_str, password_str, status, audiences, scopes, created_at, updated_at) =
+            first_result;
 
         let user = User::from_parts(
             Id::from_uuid(id),
@@ -193,8 +175,6 @@ impl UserRepository for ScyllaUserRepository {
                 .into_iter()
                 .filter_map(|s| Scope::from_str(&s).ok())
                 .collect(),
-            token_hash,
-            token_expires_at,
             created_at,
             updated_at,
         );

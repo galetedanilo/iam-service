@@ -2,6 +2,9 @@ use strum_macros::{AsRefStr, Display, EnumString};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, EnumString, Display, AsRefStr)]
 pub enum Audience {
+    #[strum(serialize = "email-service")]
+    EmailService,
+
     #[strum(serialize = "iam-service")]
     IamService,
 

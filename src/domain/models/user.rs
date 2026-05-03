@@ -14,8 +14,6 @@ pub struct User {
     status: Status,
     audiences: Vec<Audience>,
     scopes: Vec<Scope>,
-    token_hash: Option<String>,
-    token_expires_at: Option<DateTime<Utc>>,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
@@ -45,8 +43,6 @@ impl User {
     pub fn new(email: Email, password: Password) -> Self {
         let id = Id::generate();
         let now = Utc::now();
-        let token_hash = Some(nanoid::nanoid!(32));
-        let token_expires_at = Some(now + chrono::Duration::hours(1));
 
         Self {
             id,
@@ -55,8 +51,6 @@ impl User {
             status: Status::PendingConfirmation,
             audiences: vec![Audience::default()],
             scopes: vec![Scope::default()],
-            token_hash,
-            token_expires_at,
             created_at: now,
             updated_at: now,
         }
@@ -69,8 +63,6 @@ impl User {
         status: Status,
         audiences: Vec<Audience>,
         scopes: Vec<Scope>,
-        token_hash: Option<String>,
-        token_expires_at: Option<DateTime<Utc>>,
         created_at: DateTime<Utc>,
         updated_at: DateTime<Utc>,
     ) -> Self {
@@ -81,8 +73,6 @@ impl User {
             status,
             audiences,
             scopes,
-            token_hash,
-            token_expires_at,
             created_at,
             updated_at,
         }
@@ -110,14 +100,6 @@ impl User {
 
     pub fn scopes(&self) -> &Vec<Scope> {
         &self.scopes
-    }
-
-    pub fn token_hash(&self) -> &Option<String> {
-        &self.token_hash
-    }
-
-    pub fn token_expires_at(&self) -> &Option<DateTime<Utc>> {
-        &self.token_expires_at
     }
 
     pub fn created_at(&self) -> &DateTime<Utc> {
@@ -148,33 +130,12 @@ impl User {
         self.updated_at = Utc::now();
     }
 
-    pub fn update_token(&mut self) {
-        self.token_hash = Some(nanoid::nanoid!(32));
-        self.token_expires_at = Some(Utc::now() + chrono::Duration::hours(1));
-        self.updated_at = Utc::now();
-    }
-
-    pub fn invalidate_token(&mut self) {
-        self.token_hash = None;
-        self.token_expires_at = None;
-        self.updated_at = Utc::now();
-    }
-
-    pub fn is_token_valid(&self, token: &str) -> bool {
-        if let (Some(hash), Some(expires_at)) = (&self.token_hash, &self.token_expires_at) {
-            hash == token && Utc::now() < *expires_at
-        } else {
-            false
-        }
-    }
-
     pub fn can_authenticate(&self) -> bool {
         self.status().can_authenticate()
     }
 
     pub fn confirm_email_and_activate_user(&mut self) {
         self.status = Status::Active;
-        self.invalidate_token();
     }
 
     pub fn verify_password(&self, password: String) -> bool {
