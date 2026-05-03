@@ -6,6 +6,7 @@ use serde::Deserialize;
 use crate::{
     application::inputs::reset_password_input::ResetPasswordInput,
     domain::{
+        enums::audience::Audience,
         events::{
             event::{Event, EventType},
             password_reset_completed_event::PasswordResetCompletedEvent,
@@ -19,7 +20,7 @@ use crate::{
 #[derive(Debug, Deserialize)]
 struct PasswordResetClaims {
     sub: String,
-    token: String,
+    aud: Vec<String>,
     exp: usize,
     iat: usize,
 }
@@ -40,12 +41,17 @@ impl<R: UserRepository> ResetPasswordUseCase<R> {
 
     #[tracing::instrument(name = "Resetting user password", skip(self, input))]
     pub async fn execute(&self, input: ResetPasswordInput) -> Result<(), UserError> {
-        let validation = Validation::new(Algorithm::EdDSA);
+        let mut validation = Validation::new(Algorithm::EdDSA);
+
+        validation.set_audience(&[Audience::EmailService]);
+
+        validation.validate_exp = true;
+        validation.set_required_spec_claims(&["sub", "exp", "aud"]);
+
         let token_data = decode::<PasswordResetClaims>(&input.jwt, &self.decoding_key, &validation)
             .map_err(|_| UserError::Unauthorized("Invalid or expired token".to_string()))?;
 
         let user_id = Id::try_from(token_data.claims.sub).map_err(UserError::from)?;
-        let token = token_data.claims.token;
 
         if let Ok(Some(mut user)) = self
             .repository
@@ -59,28 +65,23 @@ impl<R: UserRepository> ResetPasswordUseCase<R> {
                 ));
             }
 
-            if user.is_token_valid(&token) {
-                user.set_password(input.new_password);
-                user.set_status(Status::Active);
-                user.invalidate_token();
+            user.set_password(input.new_password);
+            user.set_status(Status::Active);
 
-                let event_payload =
-                    PasswordResetCompletedEvent::new(user.id().clone(), user.email().clone());
-                let event = Event::new(EventType::PasswordResetCompleted, event_payload);
+            let event_payload =
+                PasswordResetCompletedEvent::new(user.id().clone(), user.email().clone());
+            let event = Event::new(EventType::PasswordResetCompleted, event_payload);
 
-                self.repository
-                    .save(&user, &event)
-                    .await
-                    .map_err(UserError::from)?;
+            self.repository
+                .save(&user, &event)
+                .await
+                .map_err(UserError::from)?;
 
-                return Ok(());
-            }
-
-            return Err(UserError::Unauthorized(
-                "Invalid or expired token".to_string(),
-            ));
+            return Ok(());
         }
 
-        Err(UserError::NotFound(user_id.to_string()))
+        Err(UserError::Unauthorized(
+            "Invalid or expired token".to_string(),
+        ))
     }
 }

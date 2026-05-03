@@ -9,13 +9,6 @@ CREATE TABLE IF NOT EXISTS iam_service.users (
     status text,
     audiences set<text>,
     scopes set<text>,
-    token_hash text,
-    token_expires_at timestamp,
     created_at timestamp,
     updated_at timestamp,
-);
-
-CREATE TABLE IF NOT EXISTS iam_service.users_by_email (
-    email text PRIMARY KEY,
-    id uuid
 );

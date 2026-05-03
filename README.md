@@ -35,11 +35,14 @@ src/
 
 ## 📋 Status dos Endpoints (API)
 
-| Método | Endpoint                                | Descrição                 | Status       |
-| :----- | :-------------------------------------- | :------------------------ | :----------- |
-| `GET`  | `/health`                               | Check de saúde do sistema | ✅ Concluído |
-| `GET`  | `/auth/confirm-email/{user_id}/{token}` | Registrar um novo usuário | ✅ Concluído |
-| `POST` | `/auth/register`                        | Registrar um novo usuário | ✅ Concluído |
+| Método | Endpoint                    | Descrição                  | Status       |
+| :----- | :-------------------------- | :------------------------- | :----------- |
+| `GET`  | `/health`                   | Check de saúde do sistema  | ✅ Concluído |
+| `GET`  | `/auth/confirm-email/{jwt}` | Confirmar email de usuário | ✅ Concluído |
+| `POST` | `/auth/register`            | Registrar um novo usuário  | ✅ Concluído |
+| `POST` | `/auth/authentication`      | Login de usuário           | ✅ Concluído |
+| `POST` | `/forgot-password`          | Recuperar senha de usuário | ✅ Concluído |
+| `POST` | `/auth/reset-password`      | Resetar senha de usuário   | ✅ Concluído |
 
 ## 🏁 Configuração Local
 
