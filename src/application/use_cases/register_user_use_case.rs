@@ -36,10 +36,12 @@ impl<R: UserRepository> RegisterUserUseCase<R> {
 
         let user = User::new(input.email, input.password);
 
-        
-        let event_payload =
-            UserRegisteredEvent::new(user.id().clone(), user.email().clone());
-        let event = Event::new(EventType::UserRegistered, event_payload);
+        let event_payload = UserRegisteredEvent::new(user.id().clone(), user.email().clone());
+        let event = Event::new(
+            EventType::UserRegistered,
+            "iam_service".to_string(),
+            event_payload,
+        );
 
         self.repository
             .save(&user, &event)

@@ -70,7 +70,11 @@ impl<R: UserRepository> ResetPasswordUseCase<R> {
 
             let event_payload =
                 PasswordResetCompletedEvent::new(user.id().clone(), user.email().clone());
-            let event = Event::new(EventType::PasswordResetCompleted, event_payload);
+            let event = Event::new(
+                EventType::PasswordResetCompleted,
+                "iam_service".to_string(),
+                event_payload,
+            );
 
             self.repository
                 .save(&user, &event)

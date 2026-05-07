@@ -10,6 +10,8 @@ pub struct Config {
     pub password: String,
     pub case_sensitive: bool,
     pub jaeger_url: String,
+    pub rabbitmq_uri: String,
+    pub exchangemq_name: String,
 }
 
 impl Config {
@@ -24,6 +26,8 @@ impl Config {
         password: String,
         case_sensitive: bool,
         jaeger_url: String,
+        rabbitmq_uri: String,
+        exchangemq_name: String,
     ) -> Self {
         Self {
             request_host,
@@ -36,6 +40,8 @@ impl Config {
             password,
             case_sensitive,
             jaeger_url,
+            rabbitmq_uri,
+            exchangemq_name,
         }
     }
 }

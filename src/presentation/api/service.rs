@@ -13,14 +13,18 @@ use tower_governor::{GovernorLayer, governor::GovernorConfigBuilder};
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
 use crate::{
-    infrastructure::repository::{
-        scylla_service::ScyllaService, scylla_user_repo::ScyllaUserRepository,
+    infrastructure::{
+        message::{event_worker::EventWorker, rabbitmq_publisher::RabbitmqPublisher},
+        repository::{
+            scylla_connection::ScyllaConnection, scylla_outbox_repo::ScyllaOutboxRepo,
+            scylla_user_repo::ScyllaUserRepository,
+        },
     },
     presentation::api::{
         handlers::{
             authentication_handler::authentication_handler,
-            confirm_email_handler::confirm_email_handler, health_handler::health_handler,
-            forgot_password_handler::forgot_password_handler,
+            confirm_email_handler::confirm_email_handler,
+            forgot_password_handler::forgot_password_handler, health_handler::health_handler,
             register_user_handler::register_user_handler,
             reset_password_handler::reset_password_handler,
         },
@@ -52,6 +56,8 @@ impl Service {
                 .parse()
                 .expect("SCYLLA_CASE_SENSITIVE must be a boolean"),
             std::env::var("JAEGER_URL").expect("JAEGER_URL must be set"),
+            std::env::var("RABBITMQ_URI").expect("RABBITMQ_URI must be set"),
+            std::env::var("EXCHANGE_NAME").expect("EXCHANGE_NAME must be set"),
         );
 
         Self { config }
@@ -88,16 +94,31 @@ impl Service {
         let decoding_key =
             DecodingKey::from_ed_pem(&public_key_content).expect("Invalid EdDSA public key");
 
-        let scylla_service = ScyllaService::new(
-            self.config.hostnames.iter().map(String::as_str).collect(),
-            &self.config.keyspace_name,
-            &self.config.username,
-            &self.config.password,
-            self.config.case_sensitive,
+        let scylla_connection = Arc::new(
+            ScyllaConnection::connect(
+                self.config.hostnames.iter().map(String::as_str).collect(),
+                &self.config.keyspace_name,
+                &self.config.username,
+                &self.config.password,
+                self.config.case_sensitive,
+            )
+            .await?,
+        );
+
+        let repository = ScyllaUserRepository::new(scylla_connection.clone());
+        let outbox_repo = ScyllaOutboxRepo::new(scylla_connection.clone());
+
+        let rabbit = RabbitmqPublisher::create_publisher(
+            &self.config.rabbitmq_uri,
+            &self.config.exchangemq_name,
         )
         .await?;
 
-        let repository = ScyllaUserRepository::new(Arc::new(scylla_service));
+        let event_worker = EventWorker::new(Arc::new(outbox_repo), Arc::new(rabbit));
+
+        tokio::spawn(async move {
+            event_worker.process().await;
+        });
 
         let state = AppState::new(
             Arc::new(repository),

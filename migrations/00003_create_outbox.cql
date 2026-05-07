@@ -6,10 +6,11 @@ CREATE TABLE IF NOT EXISTS iam_service.outbox (
     bucket_id text, 
     event_id uuid,
     status text, 
-    lease_owner uuid,
     lease_expires timestamp,
+    occurred_at timestamp,
     payload text,
     metadata text,
+    exchange_name text,
     event_type text,
     PRIMARY KEY (bucket_id, event_id)
 ) WITH CLUSTERING ORDER BY (event_id ASC)
