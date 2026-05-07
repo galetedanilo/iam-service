@@ -67,16 +67,18 @@ impl Metadata {
 pub struct Event<T: EventPayload> {
     id: uuid::Uuid,
     event_type: EventType,
+    exchange_name: String,
     payload: T,
     metadata: Metadata,
     occurred_at: chrono::DateTime<chrono::Utc>,
 }
 
 impl<E: EventPayload> Event<E> {
-    pub fn new(event_type: EventType, payload: E) -> Self {
+    pub fn new(event_type: EventType, exchange_name: String, payload: E) -> Self {
         Self {
             id: uuid::Uuid::now_v7(),
             event_type,
+            exchange_name,
             payload,
             metadata: Metadata::current("iam-service"),
             occurred_at: chrono::Utc::now(),
@@ -91,8 +93,8 @@ impl<E: EventPayload> Event<E> {
         &self.event_type
     }
 
-    pub fn payload(&self) -> String {
-        self.payload.get_payload()
+    pub fn exchange_name(&self) -> String {
+        self.exchange_name.clone()
     }
 
     pub fn metadata(&self) -> String {
@@ -101,5 +103,17 @@ impl<E: EventPayload> Event<E> {
 
     pub fn occurred_at(&self) -> &chrono::DateTime<chrono::Utc> {
         &self.occurred_at
+    }
+
+    pub fn build_payload_json(&self) -> String {
+        format!(
+            "{{\"event_id\": \"{}\", \"event_type\": \"{}\", \"exchange_name\": \"{}\", \"occurred_at\": \"{}\", \"payload\": {}, \"metadata\": {}}}",
+            self.id,
+            self.event_type,
+            self.exchange_name,
+            self.occurred_at.format("%Y-%m-%d %H:%M:%S"),
+            self.payload.get_payload(),
+            self.metadata.get_payload()
+        )
     }
 }

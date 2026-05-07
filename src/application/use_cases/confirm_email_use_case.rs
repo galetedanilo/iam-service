@@ -69,7 +69,11 @@ impl<R: UserRepository> ConfirmEmailUseCase<R> {
             user.confirm_email_and_activate_user();
 
             let event_payload = UserActivatedEvent::new(user.id().clone(), user.email().clone());
-            let event = Event::new(EventType::UserActivated, event_payload);
+            let event = Event::new(
+                EventType::UserActivated,
+                "iam_service".to_string(),
+                event_payload,
+            );
 
             self.repository
                 .save(&user, &event)
