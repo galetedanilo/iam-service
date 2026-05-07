@@ -38,11 +38,9 @@ impl UserRepository for ScyllaUserRepository {
     where
         T: EventPayload,
     {
-        let now = Utc::now();
-
         // 1. Definição do Bucket para o Outbox (ex: 10 shards por dia)
         let shard_id = rand::random::<u8>() % 10;
-        let bucket_id = format!("{}:{}", now.format("%Y-%m-%d"), shard_id);
+        let bucket_id = format!("outbox-{}", shard_id);
 
         // 2. RESERVA DE E-MAIL (LWT)
         // Isso garante que ninguém mais use este e-mail
@@ -61,7 +59,7 @@ impl UserRepository for ScyllaUserRepository {
 
         // 4. Query para a Outbox Genérica
         batch.append_statement(
-            "INSERT INTO outbox (bucket_id, event_id, status, payload, metadata, event_type) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO outbox (bucket_id, event_id, status, lease_expires, payload, metadata, event_type, occurred_at, exchange_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         );
 
         // 5. Valores para o batch (ordem deve corresponder às queries acima)
@@ -85,23 +83,26 @@ impl UserRepository for ScyllaUserRepository {
             (
                 bucket_id,
                 event.id(),
-                event.payload(),
                 OutboxStatus::Pending.as_ref(),
+                Utc::now(),
+                event.build_payload_json(),
                 event.metadata(),
                 event.event_type().as_ref(),
+                event.occurred_at(),
+                event.exchange_name(),
             ), // Dados da Outbox
         );
 
         // 6. Execução do batch
         if let Err(e) = self.session.batch(&batch, batch_values).await {
             // Rollback manual da reserva de e-mail caso o batch falhe drasticamente
-            let _ = self
-                .session
+            self.session
                 .query_unpaged(
                     "DELETE FROM email_lookup WHERE email = ?",
                     (user.email().as_ref(),),
                 )
-                .await;
+                .await?;
+
             return Err(UserRepositoryError::from(e));
         }
 
