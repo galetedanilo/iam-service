@@ -13,14 +13,6 @@ impl UserRegisteredEvent {
     pub fn new(user_id: Id, email: Email) -> Self {
         Self { user_id, email }
     }
-
-    pub fn user_id(&self) -> &Id {
-        &self.user_id
-    }
-
-    pub fn email(&self) -> &Email {
-        &self.email
-    }
 }
 
 impl EventPayload for UserRegisteredEvent {
