@@ -1,10 +1,10 @@
 use scylla::client::{session::Session, session_builder::SessionBuilder};
 use scylla_migrate::Migrator;
 
-pub struct ScyllaService {}
+pub struct ScyllaConnection {}
 
-impl ScyllaService {
-    pub async fn new(
+impl ScyllaConnection {
+    pub async fn connect(
         hostnames: Vec<&str>,
         keyspace_name: &str,
         username: &str,
