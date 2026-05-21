@@ -1,14 +1,30 @@
-use crate::domain::{models::user::UserError, object_values::password::Password};
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct ResetPasswordInput {
-    pub jwt: String,
-    pub new_password: Password,
+    jwt: String,
+    new_password: String,
+    correlation_id: Uuid,
 }
 
 impl ResetPasswordInput {
-    pub fn try_new(jwt: String, new_password: String) -> Result<Self, UserError> {
-        let new_password = Password::try_new(new_password)?;
-        Ok(Self { jwt, new_password })
+    pub fn new(jwt: String, new_password: String, correlation_id: Uuid) -> Self {
+        Self {
+            jwt,
+            new_password,
+            correlation_id,
+        }
+    }
+
+    pub fn jwt(&self) -> &str {
+        &self.jwt
+    }
+
+    pub fn new_password(&self) -> &str {
+        &self.new_password
+    }
+
+    pub fn correlation_id(&self) -> &Uuid {
+        &self.correlation_id
     }
 }

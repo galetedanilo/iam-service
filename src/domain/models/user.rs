@@ -138,7 +138,7 @@ impl User {
         self.status = Status::Active;
     }
 
-    pub fn verify_password(&self, password: String) -> bool {
-        self.password.verify(&password)
+    pub fn verify_password(&self, password: &str) -> bool {
+        self.password.verify(password)
     }
 }

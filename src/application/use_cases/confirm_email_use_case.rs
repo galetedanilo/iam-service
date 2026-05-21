@@ -4,13 +4,13 @@ use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 use serde::Deserialize;
 
 use crate::{
-    application::inputs::confirm_email_input::ConfirmEmailInput,
+    application::{
+        events::{event::Event, user_activated_event::UserActivatedEvent},
+        inputs::confirm_email_input::ConfirmEmailInput,
+    },
     domain::{
         enums::audience::Audience,
-        events::{
-            event::{Event, EventType},
-            user_activated_event::UserActivatedEvent,
-        },
+        events::domain_event::EventType,
         models::user::UserError,
         object_values::{id::Id, status::Status},
         repositories::user_repository::UserRepository,
@@ -18,7 +18,7 @@ use crate::{
 };
 
 #[derive(Debug, Deserialize)]
-struct EmailConfirmationClaims {
+struct ConfirmEmailClaims {
     sub: String,
     aud: Vec<String>,
     exp: usize,
@@ -48,11 +48,10 @@ impl<R: UserRepository> ConfirmEmailUseCase<R> {
         validation.validate_exp = true;
         validation.set_required_spec_claims(&["sub", "exp", "aud"]);
 
-        let token_data =
-            decode::<EmailConfirmationClaims>(&input.jwt, &self.decoding_key, &validation)
-                .map_err(|_| UserError::Unauthorized("Invalid or expired token".to_string()))?;
+        let token_data = decode::<ConfirmEmailClaims>(input.jwt(), &self.decoding_key, &validation)
+            .map_err(|_| UserError::Unauthorized("Invalid or expired token".to_string()))?;
 
-        let user_id = Id::try_from(token_data.claims.sub).map_err(UserError::from)?;
+        let user_id = Id::try_from(token_data.claims.sub.as_str()).map_err(UserError::from)?;
 
         if let Ok(Some(mut user)) = self
             .repository
@@ -68,10 +67,12 @@ impl<R: UserRepository> ConfirmEmailUseCase<R> {
 
             user.confirm_email_and_activate_user();
 
-            let event_payload = UserActivatedEvent::new(user.id().clone(), user.email().clone());
+            let event_payload =
+                UserActivatedEvent::new(user.id().to_string(), user.email().to_string());
             let event = Event::new(
                 EventType::UserActivated,
                 "iam_service".to_string(),
+                input.correlation_id().clone(),
                 event_payload,
             );
 

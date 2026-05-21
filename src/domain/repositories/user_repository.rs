@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::domain::{
-    events::event::{Event, EventPayload},
+    events::domain_event::DomainEvent,
     models::user::{User, UserError},
     object_values::{email::Email, id::Id},
 };
@@ -12,9 +12,7 @@ pub trait UserRepository: Send + Sync {
 
     async fn find_by_id(&self, id: &Id) -> Result<Option<User>, UserRepositoryError>;
 
-    async fn save<T>(&self, user: &User, event: &Event<T>) -> Result<(), UserRepositoryError>
-    where
-        T: EventPayload;
+    async fn save<E: DomainEvent>(&self, user: &User, event: &E) -> Result<(), UserRepositoryError>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Error)]

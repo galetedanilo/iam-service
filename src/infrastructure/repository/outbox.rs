@@ -1,5 +1,6 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, Display, EnumString};
 use uuid::Uuid;
 
@@ -24,42 +25,82 @@ impl TryFrom<String> for OutboxStatus {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Outbox {
-    pub bucket_id: String,
-    pub event_id: Uuid,
-    pub status: OutboxStatus,
-    pub lease_expires: DateTime<Utc>,
-    pub payload: String,
-    pub metadata: String,
-    pub event_type: String,
-    pub occurred_at: DateTime<Utc>,
-    pub exchange_name: String,
+    bucket_id: String,
+    status: String,
+    event_id: Uuid,
+    lease_expires: DateTime<Utc>,
+    exchange_name: String,
+    routing_key: String,
+    raw_event: String,
 }
 
 impl Outbox {
     pub fn new(
         bucket_id: String,
         event_id: Uuid,
-        status: OutboxStatus,
-        lease_expires: DateTime<Utc>,
-        payload: String,
-        metadata: String,
-        event_type: String,
-        occurred_at: DateTime<Utc>,
         exchange_name: String,
+        routing_key: String,
+        raw_event: String,
     ) -> Self {
         Self {
             bucket_id,
+            status: OutboxStatus::Pending.as_ref().to_string(),
             event_id,
-            status,
-            lease_expires,
-            payload,
-            metadata,
-            event_type,
-            occurred_at,
+            lease_expires: Utc::now(),
             exchange_name,
+            routing_key,
+            raw_event,
         }
+    }
+
+    pub fn from_parts(
+        bucket_id: String,
+        event_id: Uuid,
+        status: String,
+        lease_expires: DateTime<Utc>,
+        exchange_name: String,
+        routing_key: String,
+        raw_event: String,
+    ) -> Self {
+        Self {
+            bucket_id,
+            status,
+            event_id,
+            lease_expires,
+            exchange_name,
+            routing_key,
+            raw_event,
+        }
+    }
+
+    pub fn bucket_id(&self) -> &str {
+        &self.bucket_id
+    }
+
+    pub fn status(&self) -> &str {
+        &self.status
+    }
+
+    pub fn event_id(&self) -> Uuid {
+        self.event_id
+    }
+
+    pub fn lease_expires(&self) -> DateTime<Utc> {
+        self.lease_expires
+    }
+
+    pub fn exchange_name(&self) -> &str {
+        &self.exchange_name
+    }
+
+    pub fn routing_key(&self) -> &str {
+        &self.routing_key
+    }
+
+    pub fn raw_event(&self) -> &str {
+        &self.raw_event
     }
 }
 

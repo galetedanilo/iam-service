@@ -43,7 +43,7 @@ impl<R: OutboxRepo, P: EventPublisher> EventWorker<R, P> {
                     current_interval = base_interval;
 
                     for outbox in outboxes {
-                        let is_lease_expired = outbox.lease_expires < now;
+                        let is_lease_expired = outbox.lease_expires() < now;
 
                         if !is_lease_expired {
                             continue;

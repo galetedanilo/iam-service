@@ -37,7 +37,7 @@ impl Password {
     const MIN_LENGTH: usize = 8;
     const MAX_LENGTH: usize = 15;
 
-    pub fn try_new(plain_text: String) -> Result<Self, PasswordError> {
+    pub fn try_new(plain_text: &str) -> Result<Self, PasswordError> {
         if plain_text.is_empty() {
             return Err(PasswordError::Empty);
         }
@@ -99,6 +99,14 @@ impl Password {
     }
 }
 
+impl TryFrom<&str> for Password {
+    type Error = PasswordError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Self::try_new(value)
+    }
+}
+
 impl AsRef<str> for Password {
     fn as_ref(&self) -> &str {
         &self.0
@@ -117,43 +125,43 @@ mod tests {
 
     #[test]
     fn test_try_new_valid_password() {
-        let password = Password::try_new("ValidPass123!".to_string()).unwrap();
+        let password = Password::try_new("ValidPass123!").unwrap();
         assert_eq!(password.into_inner().len(), 97); // Argon2 hash length
     }
 
     #[test]
     fn test_try_new_empty_password() {
-        let result = Password::try_new("".to_string());
+        let result = Password::try_new("");
         assert_eq!(result.unwrap_err(), PasswordError::Empty);
     }
 
     #[test]
     fn test_try_new_too_short_password() {
-        let result = Password::try_new("Short1!".to_string());
+        let result = Password::try_new("Short1!");
         assert_eq!(result.unwrap_err(), PasswordError::TooShort(8));
     }
 
     #[test]
     fn test_try_new_too_long_password() {
-        let result = Password::try_new("ThisIsAVeryLongPassword123!".to_string());
+        let result = Password::try_new("ThisIsAVeryLongPassword123!");
         assert_eq!(result.unwrap_err(), PasswordError::TooLong(15));
     }
 
     #[test]
     fn test_try_new_missing_uppercase() {
-        let result = Password::try_new("lowercase1!".to_string());
+        let result = Password::try_new("lowercase1!");
         assert_eq!(result.unwrap_err(), PasswordError::MissingUppercase);
     }
 
     #[test]
     fn test_try_new_missing_digit() {
-        let result = Password::try_new("Uppercaseta".to_string());
+        let result = Password::try_new("Uppercaseta");
         assert_eq!(result.unwrap_err(), PasswordError::MissingDigit);
     }
 
     #[test]
     fn test_try_new_missing_special_char() {
-        let result = Password::try_new("Uppercase1".to_string());
+        let result = Password::try_new("Uppercase1");
         assert_eq!(result.unwrap_err(), PasswordError::MisssingSpecialChar);
     }
 }
