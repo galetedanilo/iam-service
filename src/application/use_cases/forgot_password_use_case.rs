@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use crate::{
-    application::inputs::forgot_password_input::ForgotPasswordInput,
+    application::{
+        events::{event::Event, password_reset_requested_event::PasswordResetRequestedEvent},
+        inputs::forgot_password_input::ForgotPasswordInput,
+    },
     domain::{
-        events::{
-            event::{Event, EventType},
-            password_reset_requested_event::PasswordResetRequestedEvent,
-        },
+        events::domain_event::EventType,
         models::user::UserError,
-        object_values::status::Status,
+        object_values::{email::Email, status::Status},
         repositories::user_repository::UserRepository,
     },
 };
@@ -25,9 +25,11 @@ impl<R: UserRepository> ForgotPasswordUseCase<R> {
 
     #[tracing::instrument(name = "Requesting password reset", skip(self, input))]
     pub async fn execute(&self, input: ForgotPasswordInput) -> Result<(), UserError> {
+        let email = Email::try_from(input.email())?;
+
         let Ok(Some(mut user)) = self
             .repository
-            .find_by_email(&input.email)
+            .find_by_email(&email)
             .await
             .map_err(UserError::from)
         else {
@@ -37,10 +39,11 @@ impl<R: UserRepository> ForgotPasswordUseCase<R> {
         user.set_status(Status::PendingResetPassword);
 
         let event_payload =
-            PasswordResetRequestedEvent::new(user.id().clone(), user.email().clone());
+            PasswordResetRequestedEvent::new(user.id().to_string(), user.email().to_string());
         let event = Event::new(
             EventType::PasswordResetRequested,
             "iam_service".to_string(),
+            input.correlation_id().clone(),
             event_payload,
         );
 

@@ -1,15 +1,30 @@
-use crate::domain::{models::user::UserError, object_values::email::Email};
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct AuthenticationInput {
-    pub email: Email,
-    pub password: String,
+    email: String,
+    password: String,
+    correlation_id: Uuid,
 }
 
 impl AuthenticationInput {
-    pub fn try_new(email: String, password: String) -> Result<Self, UserError> {
-        let email = Email::try_from(email)?;
+    pub fn new(email: String, password: String, correlation_id: Uuid) -> Self {
+        Self {
+            email,
+            password,
+            correlation_id,
+        }
+    }
 
-        Ok(Self { email, password })
+    pub fn email(&self) -> &str {
+        &self.email
+    }
+
+    pub fn password(&self) -> &str {
+        &self.password
+    }
+
+    pub fn correlation_id(&self) -> &Uuid {
+        &self.correlation_id
     }
 }

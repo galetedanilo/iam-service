@@ -4,21 +4,21 @@ use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 use serde::Deserialize;
 
 use crate::{
-    application::inputs::reset_password_input::ResetPasswordInput,
+    application::{
+        events::{event::Event, password_reset_completed_event::PasswordResetCompletedEvent},
+        inputs::reset_password_input::ResetPasswordInput,
+    },
     domain::{
         enums::audience::Audience,
-        events::{
-            event::{Event, EventType},
-            password_reset_completed_event::PasswordResetCompletedEvent,
-        },
+        events::domain_event::EventType,
         models::user::UserError,
-        object_values::{id::Id, status::Status},
+        object_values::{id::Id, password::Password, status::Status},
         repositories::user_repository::UserRepository,
     },
 };
 
 #[derive(Debug, Deserialize)]
-struct PasswordResetClaims {
+struct ResetPasswordClaims {
     sub: String,
     aud: Vec<String>,
     exp: usize,
@@ -41,6 +41,8 @@ impl<R: UserRepository> ResetPasswordUseCase<R> {
 
     #[tracing::instrument(name = "Resetting user password", skip(self, input))]
     pub async fn execute(&self, input: ResetPasswordInput) -> Result<(), UserError> {
+        let new_password = Password::try_from(input.new_password())?;
+
         let mut validation = Validation::new(Algorithm::EdDSA);
 
         validation.set_audience(&[Audience::EmailService]);
@@ -48,10 +50,11 @@ impl<R: UserRepository> ResetPasswordUseCase<R> {
         validation.validate_exp = true;
         validation.set_required_spec_claims(&["sub", "exp", "aud"]);
 
-        let token_data = decode::<PasswordResetClaims>(&input.jwt, &self.decoding_key, &validation)
-            .map_err(|_| UserError::Unauthorized("Invalid or expired token".to_string()))?;
+        let token_data =
+            decode::<ResetPasswordClaims>(&input.jwt(), &self.decoding_key, &validation)
+                .map_err(|_| UserError::Unauthorized("Invalid or expired token".to_string()))?;
 
-        let user_id = Id::try_from(token_data.claims.sub).map_err(UserError::from)?;
+        let user_id = Id::try_from(token_data.claims.sub.as_str()).map_err(UserError::from)?;
 
         if let Ok(Some(mut user)) = self
             .repository
@@ -65,14 +68,15 @@ impl<R: UserRepository> ResetPasswordUseCase<R> {
                 ));
             }
 
-            user.set_password(input.new_password);
+            user.set_password(new_password);
             user.set_status(Status::Active);
 
             let event_payload =
-                PasswordResetCompletedEvent::new(user.id().clone(), user.email().clone());
+                PasswordResetCompletedEvent::new(user.id().to_string(), user.email().to_string());
             let event = Event::new(
                 EventType::PasswordResetCompleted,
                 "iam_service".to_string(),
+                input.correlation_id().clone(),
                 event_payload,
             );
 

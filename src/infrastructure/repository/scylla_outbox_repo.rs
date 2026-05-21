@@ -22,7 +22,7 @@ impl ScyllaOutboxRepo {
 impl OutboxRepo for ScyllaOutboxRepo {
     async fn select_all(&self, bucket_id: &str) -> Result<Vec<Outbox>> {
         let query = r#"
-            SELECT bucket_id, event_id, status, lease_expires, payload, metadata, event_type, occurred_at, exchange_name FROM outbox
+            SELECT bucket_id, event_id, status, lease_expires, exchange_name, routing_key, raw_event FROM outbox
             WHERE bucket_id = ?
             LIMIT 100
         "#;
@@ -41,11 +41,9 @@ impl OutboxRepo for ScyllaOutboxRepo {
                 event_id,
                 status,
                 lease_expires,
-                payload,
-                metadata,
-                event_type,
-                occurred_at,
                 exchange_name,
+                routing_key,
+                raw_event,
             ): (
                 String,
                 Uuid,
@@ -54,21 +52,17 @@ impl OutboxRepo for ScyllaOutboxRepo {
                 String,
                 String,
                 String,
-                DateTime<Utc>,
-                String,
             ) = row?;
 
-            outboxes.push(Outbox {
+            outboxes.push(Outbox::from_parts(
                 bucket_id,
                 event_id,
-                status: OutboxStatus::try_from(status)?,
+                status,
                 lease_expires,
-                payload,
-                metadata,
-                event_type,
-                occurred_at,
                 exchange_name,
-            });
+                routing_key,
+                raw_event,
+            ));
         }
 
         Ok(outboxes)
@@ -91,9 +85,9 @@ impl OutboxRepo for ScyllaOutboxRepo {
                 (
                     OutboxStatus::Processing.as_ref(),
                     now + Duration::seconds(90),
-                    &outbox.bucket_id,
-                    &outbox.event_id,
-                    &outbox.lease_expires,
+                    &outbox.bucket_id(),
+                    &outbox.event_id(),
+                    &outbox.lease_expires(),
                 ),
             )
             .await?;
@@ -118,9 +112,9 @@ impl OutboxRepo for ScyllaOutboxRepo {
                 (
                     OutboxStatus::Pending.as_ref(),
                     now + Duration::seconds(90),
-                    &outbox.bucket_id,
-                    &outbox.event_id,
-                    &outbox.lease_expires,
+                    &outbox.bucket_id(),
+                    &outbox.event_id(),
+                    &outbox.lease_expires(),
                 ),
             )
             .await?;
@@ -136,7 +130,7 @@ impl OutboxRepo for ScyllaOutboxRepo {
         "#;
 
         self.session
-            .query_unpaged(query, (&outbox.bucket_id, &outbox.event_id))
+            .query_unpaged(query, (&outbox.bucket_id(), &outbox.event_id()))
             .await?;
 
         Ok(())

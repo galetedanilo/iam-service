@@ -47,17 +47,17 @@ impl RabbitmqPublisher {
 
 #[async_trait::async_trait]
 impl EventPublisher for RabbitmqPublisher {
-    async fn publish_event(&self, event: &Outbox) -> anyhow::Result<()> {
+    async fn publish_event(&self, outbox_record: &Outbox) -> anyhow::Result<()> {
         let retry_strategy = ExponentialBackoff::from_millis(100).map(jitter).take(3);
 
         Retry::spawn(retry_strategy, || async {
             let confirm = self
                 .channel
                 .basic_publish(
-                    event.exchange_name.clone().into(),
-                    event.event_type.clone().into(),
+                    outbox_record.exchange_name().into(),
+                    outbox_record.routing_key().into(),
                     BasicPublishOptions::default(),
-                    event.payload.as_bytes(),
+                    &outbox_record.raw_event().as_bytes(),
                     BasicProperties::default().with_delivery_mode(2),
                 )
                 .await?
@@ -66,7 +66,7 @@ impl EventPublisher for RabbitmqPublisher {
             if confirm.is_ack() {
                 Ok(())
             } else {
-                tracing::warn!("RabbitMQ send NACK for event {}", event.event_id);
+                tracing::warn!("RabbitMQ send NACK for event {}", outbox_record.event_id());
                 Err(anyhow::anyhow!("NACK received"))
             }
         })

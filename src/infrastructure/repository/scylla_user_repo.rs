@@ -11,11 +11,7 @@ use uuid::Uuid;
 
 use crate::{
     domain::{
-        enums::{audience::Audience, scope::Scope},
-        events::event::{Event, EventPayload},
-        models::user::User,
-        object_values::{email::Email, id::Id, password::Password, status::Status},
-        repositories::user_repository::{UserRepository, UserRepositoryError},
+        enums::{audience::Audience, scope::Scope}, events::domain_event::DomainEvent, models::user::User, object_values::{email::Email, id::Id, password::Password, status::Status}, repositories::user_repository::{UserRepository, UserRepositoryError}
     },
     infrastructure::repository::outbox::OutboxStatus,
 };
@@ -34,9 +30,7 @@ impl ScyllaUserRepository {
 #[async_trait::async_trait]
 impl UserRepository for ScyllaUserRepository {
     #[tracing::instrument(name = "Saving user to ScyllaDB", skip(self, user, event))]
-    async fn save<T>(&self, user: &User, event: &Event<T>) -> Result<(), UserRepositoryError>
-    where
-        T: EventPayload,
+    async fn save<E: DomainEvent>(&self, user: &User, event: &E) -> Result<(), UserRepositoryError>
     {
         // 1. Definição do Bucket para o Outbox (ex: 10 shards por dia)
         let shard_id = rand::random::<u8>() % 10;
@@ -59,7 +53,7 @@ impl UserRepository for ScyllaUserRepository {
 
         // 4. Query para a Outbox Genérica
         batch.append_statement(
-            "INSERT INTO outbox (bucket_id, event_id, status, lease_expires, payload, metadata, event_type, occurred_at, exchange_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO outbox (bucket_id, event_id, status, lease_expires,  exchange_name, routing_key, raw_event) VALUES (?, ?, ?, ?, ?, ?, ?)",
         );
 
         // 5. Valores para o batch (ordem deve corresponder às queries acima)
@@ -85,11 +79,9 @@ impl UserRepository for ScyllaUserRepository {
                 event.id(),
                 OutboxStatus::Pending.as_ref(),
                 Utc::now(),
-                event.build_payload_json(),
-                event.metadata(),
-                event.event_type().as_ref(),
-                event.occurred_at(),
                 event.exchange_name(),
+                event.routing_key(),
+                event.raw_event(),
             ), // Dados da Outbox
         );
 
@@ -163,7 +155,7 @@ impl UserRepository for ScyllaUserRepository {
 
         let user = User::from_parts(
             Id::from_uuid(id),
-            Email::try_new(email_str)
+            Email::try_from(email_str.as_str())
                 .map_err(|e| UserRepositoryError::InvalidData(e.to_string()))?,
             Password::from_hash(password_str),
             Status::from_str(&status)

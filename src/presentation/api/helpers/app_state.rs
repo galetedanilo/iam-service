@@ -5,7 +5,8 @@ use jsonwebtoken::{DecodingKey, EncodingKey};
 use crate::{
     application::use_cases::{
         authentication_use_case::AuthenticationUseCase,
-        confirm_email_use_case::ConfirmEmailUseCase, forgot_password_use_case::ForgotPasswordUseCase,
+        confirm_email_use_case::ConfirmEmailUseCase,
+        forgot_password_use_case::ForgotPasswordUseCase,
         register_user_use_case::RegisterUserUseCase, reset_password_use_case::ResetPasswordUseCase,
     },
     domain::repositories::user_repository::UserRepository,
@@ -23,7 +24,11 @@ pub struct AppState<R: UserRepository> {
 }
 
 impl<R: UserRepository> AppState<R> {
-    pub fn new(repository: Arc<R>, encoding_key: Arc<EncodingKey>, decoding_key: Arc<DecodingKey>) -> Self {
+    pub fn new(
+        repository: Arc<R>,
+        encoding_key: Arc<EncodingKey>,
+        decoding_key: Arc<DecodingKey>,
+    ) -> Self {
         Self {
             authentication_use_case: Arc::new(AuthenticationUseCase::new(
                 repository.clone(),

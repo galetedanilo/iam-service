@@ -4,7 +4,10 @@ use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 
 use crate::{
     application::{helpers::token::Claims, inputs::authentication_input::AuthenticationInput},
-    domain::{models::user::UserError, repositories::user_repository::UserRepository},
+    domain::{
+        models::user::UserError, object_values::email::Email,
+        repositories::user_repository::UserRepository,
+    },
 };
 
 pub struct AuthenticationUseCase<R: UserRepository> {
@@ -20,20 +23,18 @@ impl<R: UserRepository> AuthenticationUseCase<R> {
         }
     }
 
-    #[tracing::instrument(
-        name = "Authentication application",
-        skip(self, input),
-        fields(user.email = %input.email),
-        err)]
+    #[tracing::instrument(name = "Authentication application", skip(self, input), err)]
     pub async fn execute(&self, input: AuthenticationInput) -> Result<String, UserError> {
+        let email = Email::try_from(input.email())?;
+
         if let Some(user) = self
             .repository
-            .find_by_email(&input.email)
+            .find_by_email(&email)
             .await
             .map_err(UserError::from)?
         {
-            if !user.status().can_authenticate() || !user.verify_password(input.password) {
-                return Err(UserError::Unauthorized(input.email.to_string()));
+            if !user.status().can_authenticate() || !user.verify_password(input.password()) {
+                return Err(UserError::Unauthorized(email.to_string()));
             }
 
             let claims = Claims::new(user.audiences(), user.scopes(), user.id(), user.email());
@@ -47,6 +48,6 @@ impl<R: UserRepository> AuthenticationUseCase<R> {
             return Ok(token);
         }
 
-        Err(UserError::Unauthorized(input.email.to_string()))
+        Err(UserError::Unauthorized(input.email().to_string()))
     }
 }
